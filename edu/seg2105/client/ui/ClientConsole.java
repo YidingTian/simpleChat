@@ -50,12 +50,11 @@ public class ClientConsole implements ChatIF
    * @param host The host to connect to.
    * @param port The port to connect on.
    */
-  public ClientConsole(String host, int port) 
+  public ClientConsole(String loginID, String host, int port) 
   {
     try 
     {
-      client= new ChatClient(host, port, this);
-      
+        client= new ChatClient(loginID , host, port, this);
       
     } 
     catch(IOException exception) 
@@ -78,22 +77,19 @@ public class ClientConsole implements ChatIF
    */
   public void accept() 
   {
-    try
-    {
-
-      String message;
-
       while (true) 
       {
-        message = fromConsole.nextLine();
-        client.handleMessageFromClientUI(message);
+          try 
+          {
+              String message = fromConsole.nextLine();  // Read input from the console
+              client.handleMessageFromClientUI(message);  // Send the message to the server
+          } 
+          catch (Exception ex) 
+          {
+
+              break;  // Break if there’s an error to avoid infinite loop
+          }
       }
-    } 
-    catch (Exception ex) 
-    {
-      System.out.println
-        ("Unexpected error while reading from console!");
-    }
   }
 
   /**
@@ -117,19 +113,34 @@ public class ClientConsole implements ChatIF
    */
   public static void main(String[] args) 
   {
-    String host = "";
-
-
-    try
-    {
-      host = args[0];
-    }
-    catch(ArrayIndexOutOfBoundsException e)
-    {
-      host = "localhost";
-    }
-    ClientConsole chat= new ClientConsole(host, DEFAULT_PORT);
-    chat.accept();  //Wait for console data
+      String loginID = "";
+      String host = "localhost";  // Default to the localhost
+      int port = DEFAULT_PORT;  // Port default to 5555
+  
+      // Get login ID, either from args or prompt
+      if (args.length > 0) {
+          loginID = args[0];
+      } else {
+          System.out.print("Enter login ID: ");
+          Scanner scanner = new Scanner(System.in);
+          loginID = scanner.nextLine().trim();  // Do not close this scanner
+      }
+  
+      if (loginID.isEmpty()) {
+          System.err.println("No login ID provided. Exiting.");
+          System.exit(1);
+      }
+  
+      // Parse host and port if provided
+      if (args.length > 1) host = args[1];
+      if (args.length > 2) port = Integer.parseInt(args[2]);
+  
+      // Set up the ClientConsole with correct loginID, host, and port
+      ClientConsole chat = new ClientConsole(loginID, host, port);
+      chat.accept();  // Start waiting for console input
+  }
+  public void handleMessageFromServer(Object msg) {
+      System.out.println("Message from server: " + msg.toString()); // Display in ClientConsole
   }
 }
 //End of ConsoleChat class
