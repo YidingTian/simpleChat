@@ -10,27 +10,73 @@ public class ServerConsole implements ChatIF {
 	Scanner fromConsole;
 	
 	public ServerConsole(int port){
-		try{
-			server= new EchoServer(port);
-		}
-		catch(Exception exception){
-			System.out.println("Error: Can't setup server!"+ " Terminating server.");
-			System.exit(1);
-		}
-		fromConsole = new Scanner(System.in); 
-	}
-    public ServerConsole(int port, EchoServer server) {
-        this.server = server;
-        fromConsole = new Scanner(System.in); 
-    }
-	
+		this.server = new EchoServer(port, this);
+		try {
+            server.listen();
+        } catch (IOException e) {
+            System.out.println("ERROR - Could not listen for clients!");
+        }
 
+        // Start a new thread to handle console input commands
+      	fromConsole = new Scanner(System.in);
+}
+	
+	private void handleCommand(String command)  {
+		if(command.equals("#quit")) {
+			System.out.println("Server is shutting down");
+			server.stopListening();
+			try {
+				server.close();
+			} catch(IOException e) {
+				System.out.println("Error closing the server: " + e.getMessage());
+			}
+			
+			System.exit(0);
+		}
+		else if(command.equals("#stop")) {
+			server.stopListening();
+		}
+		else if(command.equals("#close")) {
+			try {
+				server.close();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		else if(command.startsWith("#setport")) {
+			if(!server.isListening() && server.getNumberOfClients() == 0) {
+				int port = Integer.parseInt(command.split(" ")[1]);
+				server.setPort(port);
+				System.out.println("Port has been set to " + port);
+			}
+			else {
+				System.out.println("Error: Cannot change port while server is active or when clients are connected");
+			}
+		}
+		else if(command.equals("#start")) {
+			if(!server.isListening()) {
+				try {
+					server.listen();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			} else {
+				System.out.println("Server is already listening.");
+			}
+		}
+		else if(command.equals("#getport")) {
+			System.out.println("current port is " + server.getPort());
+		}
+	}
     
     
 	@Override
 	public void display(String message) {
 	
 		System.out.println("SERVER MSG> " + message);
+		server.sendToAllClients("SERVER MSG> " + message);
 	}
 /**
  * This method is responsible for the creation of 
@@ -41,47 +87,43 @@ public class ServerConsole implements ChatIF {
  * @throws IOException 
  */
 	public static void main(String[] args) {
-	  int port = 5555; //Port to listen on
-	
-	  try
-	  {
-	    port = Integer.parseInt(args[0]); //Get port from command line
-	  }
-	  catch(Throwable t)
-	  {
-	    port = DEFAULT_PORT; //Set port to 5555
-	  }
-		
-	  EchoServer sv = new EchoServer(port);
-	  
-	  try 
-	  {
-	    sv.listen(); //Start listening for connections
-	    
-	  } 
-	  catch (Exception ex) 
-	  {
-	    System.out.println("ERROR - Could not listen for clients!");
-	  }
+		int port = 0;
+		try {
+			port = Integer.parseInt(args[0]);
+		}
+		catch(Throwable t) {
+			port = EchoServer.DEFAULT_PORT;
+		}
+		ServerConsole sc = new ServerConsole(port);
+		EchoServer sv = sc.server;
+		try 
+	    {
+	      sv.listen(); //Start listening for connections
+	    } 
+	    catch (Exception ex) 
+	    {
+	      System.out.println("ERROR - Could not listen for clients!");
+	    }
+		sc.accept();
 	}
-	public void handleMessageFromServer(String message) {
-	    System.out.println("Server Console: " + message); // Echo on the server console
-	    server.broadcastToClients(message); // Broadcast to all clients through EchoServer
-	}
-    public void accept() {
+
+	public void accept() {
         try {
+  
             String message;
             while (true) {
                 message = fromConsole.nextLine();
                 if (message.startsWith("#")) {
-                    server.handleMessageFromServerConsole(message); // Process commands
+                    handleCommand(message);
                 } else {
-                    server.handleMessageFromServer(message); // Send regular messages to all clients
+                    server.handleMessageFromServerUI(message);
                 }
             }
         } catch (Exception ex) {
-            System.out.println("Unexpected error while reading from console!");
+            System.out.println("Unexpected error while reading from server console!");
+            ex.printStackTrace();
         }
+  
     }
 }
 //End of ServerConsole class

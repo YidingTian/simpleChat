@@ -6,6 +6,7 @@ package edu.seg2105.edu.server.backend;
 
 import java.io.IOException;
 
+import edu.seg2105.edu.*;
 import ocsf.server.*;
 
 //import edu.seg2105.edu.server.backend.ServerConsole;
@@ -19,6 +20,8 @@ import ocsf.server.*;
  * @author Paul Holden
  */
 public class EchoServer extends AbstractServer 
+
+
 {
   //Class variables *************************************************
   
@@ -26,64 +29,85 @@ public class EchoServer extends AbstractServer
    * The default port to listen on.
    */
   final public static int DEFAULT_PORT = 5555;
-  final private String loginIDKey = "loginID";
+  ServerConsole console;
   //Constructors ****************************************************
   
   /**
    * Constructs an instance of the echo server.
    *
    * @param port The port number to connect on.
- * @throws IOException 
    */
-  public EchoServer(int port)
+
+  public EchoServer(int port, ServerConsole console) 
   {
     super(port);
+    this.console = console;
+
   }
 
-  
   
   //Instance methods ************************************************
   
   /**
    * This method handles any messages received from the client.
-   * (same function as what demonstrated during lecture)
+   *
    * @param msg The message received from the client.
    * @param client The connection from which the message originated.
    */
-  private void handleLoginCommand(String message, ConnectionToClient client) throws IOException {
-	    // Ensure #login is only allowed as the first command
-	    if (client.getInfo(loginIDKey) != null) {
-	        client.sendToClient("ERROR: You are already logged in. Connection will be closed.");
-	        client.close();
-	        return;
-	    }
-	    String loginID = message.substring(7).trim(); // Extract login ID
-	    if (loginID.isEmpty()) {
-	        client.sendToClient("ERROR: Login ID cannot be empty. Connection will be closed.");
-	        client.close();
-	    } else {
-	        client.setInfo(loginIDKey, loginID); // Save login ID using loginIDKey
-	        client.sendToClient("Login successful. Welcome, " + loginID + "!");
-	        System.out.println("Client logged in with ID: " + loginID);
-	    }
-	}
-  public void handleMessageFromClient(Object msg, ConnectionToClient client) {
-	  String message = msg.toString();
+  public void handleMessageFromClient
+    (Object msg, ConnectionToClient client)
+  {
+	  
+	
+    String myStr = (String) msg;
+    if(myStr.startsWith("#login")) {
+    	if(client.getInfo("loginID") == null) {
+    	
+    		String[] tokens= myStr.split(" ", 2);
+        	if(tokens.length>1) {
+        		String loginID = tokens[1];
+        		client.setInfo("loginID", loginID);
+        		System.out.println(loginID + " has logged on");
+        		try {
+					client.sendToClient("Login successful as " + loginID);
+
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+        	}else {
+        	
+        		System.out.println("No login ID has been provided with #login command. ");
+        		closeConnectionWithError(client, "Login ID required");
+        	}
+    	} else {
+    		try {
+				client.sendToClient("Error: Already logged in.");
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+    		closeConnectionWithError(client, "Login command can only be used once after connected to server");
+    	}
+    	
+    
+    }
+    else {
+    	String message = ((String) msg).replaceFirst("^[^>]+>\\s*", "") ;
+        System.out.println("Message received: " + message + " from " + client.getInfo("loginID"));
+    	 this.sendToAllClients(msg);
+    }
+   
+  }
+  
+  private void closeConnectionWithError(ConnectionToClient client, String errorMessage) {
 	  try {
-	      String loginID = (String) client.getInfo(loginIDKey);  // Get client ID if logged in
-	      if (loginID == null && message.startsWith("#login ")) {
-	          handleLoginCommand(message, client);  // Handle login
-	      } else if (loginID != null) {
-	          System.out.println("Message received from " + loginID + ": " + message);  // Display message
-	          sendToAllClients(loginID + ": " + message);  // Broadcast message to all clients
-	      } else {
-	          client.sendToClient("ERROR: You must log in first using #login <loginID>");
-	          client.close();
-	      }
-	  } catch (IOException e) {
-	      System.out.println("Error handling message from client: " + e.getMessage());
+		  client.sendToClient(errorMessage);
+		  client.close();
+	  }catch(IOException e) {
+		  System.err.println("Failed to close connection: " + e.getMessage());
 	  }
-	}
+  }
     
   /**
    * This method overrides the one in the superclass.  Called
@@ -110,131 +134,49 @@ public class EchoServer extends AbstractServer
   
   /**
    * This method is responsible for the creation of 
-   * the server instance (there is no UI in this phase). (Used when ServerConsol is not implemented yet
+   * the server instance (there is no UI in this phase).
    *
    * @param args[0] The port number to listen on.  Defaults to 5555 
    *          if no argument is entered.
- * @throws IOException 
    */
-  public static void main(String[] args) throws IOException 
-  {
-	  EchoServer es = new EchoServer(5555);
-    int port = 5555; //Port to listen on
-    es.listen();
-    
-    try
-    {
-      port = Integer.parseInt(args[0]); //Get port from command line
-    }
-    catch(Throwable t)
-    {
-      port = DEFAULT_PORT; //Set port to 5555
-    }
-	
-    EchoServer sv = new EchoServer(port);
-    
-    try 
-    {
-      sv.listen(); //Start listening for connections
-    } 
-    catch (Exception ex) 
-    {
-      System.out.println("ERROR - Could not listen for clients!");
-    }
-
-    ServerConsole console = new ServerConsole(port, sv);
-    console.accept(); 
-  }
-  
-  public void handleMessageFromServerConsole(String message) {
-	  if (message.startsWith("#")) {
-		  String[] parameters = message.split(" ");
-		  String command = parameters[0];
-		  switch (command) {
-		  	case "#quit":
-		  		try {
-		  			this.close();
-		  			System.out.println("Server Stopping.");
-		  		} catch (IOException e) {
-		  			System.exit(1);
-		  		}
-		  		System.exit(0);
-		  		break;
-		  	case "#stop":
-		  		this.stopListening();
-	  			System.out.println("Server has stopped listening for connections.");
-		  		break;
-		  	case "#close":
-		  		try {
-		  			this.close();
-		  			System.out.println("Server Stopping.");
-		  		} catch (IOException e) {
-		  			System.exit(1);
-		  		}
-		  		System.exit(0);
-		  		break;
-		  	case "#setport":
-		  		if (!this.isListening() && this.getNumberOfClients() < 1) {
-		  			super.setPort(Integer.parseInt(parameters[1]));
-		  			System.out.println("Port set to " +
-		  					Integer.parseInt(parameters[1]));
-		  		} else {
-		  			System.out.println("Can't do that now. Server is connected.");
-		  		}
-		  		break;
-          		  	case "#start":
-		  		if (!isListening()) {
-		  			try {
-		  				this.listen();
-		  				System.out.println("Server started listening for new clients.");
-		  			} catch (IOException e) {
-		  				System.out.println("Faced an error while closing");
-		  			}
-		  		} else {
-		  			System.out.println("We are already started and listening for clients!.");
-		  		}
-		  		break;
-		  	case "#getport":
-		  		System.out.println("Current port is " + this.getPort());
-		  		break;
-		  	default:
-		  		System.out.println("Invalid command: '" + command+ "'");
-		  		break;
-		  }
-	  } else {
-		  this.sendToAllClients(message);
-	  	}
-  }
-  //print out a message when a client just connected
-  @Override
-  protected void clientConnected(ConnectionToClient client) {
-	    System.out.println("Client connected: " + client);
-	}
-  //print out a message when a client disconnected
-  @Override
-  synchronized protected void clientDisconnected(ConnectionToClient client) {
-      String loginID = (String) client.getInfo(loginIDKey);
-      System.out.println("Client disconnected: " + (loginID != null ? loginID : "Unknown"));
-  }
-  
-  public void handleMessageFromServer(Object msg) {
-	    System.out.println("Server Message: " + msg);
-	    this.sendToAllClients("Server Message: " + msg); 
-	}
-  public void broadcastToClients(String message) {
-	    Thread[] clientThreadList = getClientConnections();
-	    System.out.println("Broadcasting to clients: " + message);
-	    if (clientThreadList != null) {
-	        for (Thread clientThread : clientThreadList) {
-	            try {
-	                ((ConnectionToClient) clientThread).sendToClient(message);
-	            } catch (IOException e) {
-	                System.out.println("Failed to send message to a client.");
-	            }
-	        }
-	    }
+	/**
+	 * Hook method called each time a new client connection is
+	 * accepted. The default implementation does nothing.
+	 * @param client the connection connected to the client.
+	 */
+	protected void clientConnected(ConnectionToClient client) {
+		System.out.println("A new client has connected to the server.");
 	}
 
-  
+	/**
+	 * Hook method called each time a client disconnects.
+	 * The default implementation does nothing. The method
+	 * may be overridden by subclasses but should remains synchronized.
+	 *
+	 * @param client the connection with the client.
+	 */
+	synchronized protected void clientDisconnected(ConnectionToClient client) {
+		String loginId = (String) client.getInfo("loginID");
+		
+		   if (loginId != null) {
+		        System.out.println(loginId + " has disconnected!");
+		    } else {
+		        System.out.println("An anonymous client has disconnected.");
+		    }
+		
+	}
+	@Override 
+	synchronized protected void clientException(ConnectionToClient client, Throwable exception) {
+		
+		try {
+			client.close();
+		}catch(Exception e){
+			e.printStackTrace();
+		}
+	}
+	public void handleMessageFromServerUI(String message) {
+		console.display(message);
+	}
+
 }
 //End of EchoServer class
