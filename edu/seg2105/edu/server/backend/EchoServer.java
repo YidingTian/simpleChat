@@ -8,7 +8,7 @@ import java.io.IOException;
 
 import ocsf.server.*;
 
-import edu.seg2105.edu.server.backend.ServerConsole;
+//import edu.seg2105.edu.server.backend.ServerConsole;
 /**
  * This class overrides some of the methods in the abstract 
  * superclass in order to give more functionality to the server.
@@ -33,8 +33,9 @@ public class EchoServer extends AbstractServer
    * Constructs an instance of the echo server.
    *
    * @param port The port number to connect on.
+ * @throws IOException 
    */
-  public EchoServer(int port) 
+  public EchoServer(int port)
   {
     super(port);
   }
@@ -109,7 +110,7 @@ public class EchoServer extends AbstractServer
   
   /**
    * This method is responsible for the creation of 
-   * the server instance (there is no UI in this phase).
+   * the server instance (there is no UI in this phase). (Used when ServerConsol is not implemented yet
    *
    * @param args[0] The port number to listen on.  Defaults to 5555 
    *          if no argument is entered.
@@ -152,7 +153,7 @@ public class EchoServer extends AbstractServer
 		  switch (command) {
 		  	case "#quit":
 		  		try {
-		  			close();
+		  			this.close();
 		  			System.out.println("Server Stopping.");
 		  		} catch (IOException e) {
 		  			System.exit(1);
@@ -165,7 +166,7 @@ public class EchoServer extends AbstractServer
 		  		break;
 		  	case "#close":
 		  		try {
-		  			close();
+		  			this.close();
 		  			System.out.println("Server Stopping.");
 		  		} catch (IOException e) {
 		  			System.exit(1);
@@ -184,7 +185,7 @@ public class EchoServer extends AbstractServer
           		  	case "#start":
 		  		if (!isListening()) {
 		  			try {
-		  				listen();
+		  				this.listen();
 		  				System.out.println("Server started listening for new clients.");
 		  			} catch (IOException e) {
 		  				System.out.println("Faced an error while closing");
@@ -221,9 +222,8 @@ public class EchoServer extends AbstractServer
 	    this.sendToAllClients("Server Message: " + msg); 
 	}
   public void broadcastToClients(String message) {
-	    System.out.println("Broadcasting to clients: " + message);
-
 	    Thread[] clientThreadList = getClientConnections();
+	    System.out.println("Broadcasting to clients: " + message);
 	    if (clientThreadList != null) {
 	        for (Thread clientThread : clientThreadList) {
 	            try {

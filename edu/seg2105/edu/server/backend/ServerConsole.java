@@ -1,7 +1,7 @@
 package edu.seg2105.edu.server.backend;
+import java.io.IOException;
 import java.util.Scanner;
 import edu.seg2105.client.common.ChatIF;
-import edu.seg2105.edu.server.backend.EchoServer;
 public class ServerConsole implements ChatIF {
 	final public static int DEFAULT_PORT = 5555;
 	
@@ -24,21 +24,7 @@ public class ServerConsole implements ChatIF {
         fromConsole = new Scanner(System.in); 
     }
 	
-    public void accept() {
-        try {
-            String message;
-            while (true) {
-                message = fromConsole.nextLine();
-                if (message.startsWith("#")) {
-                    server.handleMessageFromServerConsole(message); // Process commands
-                } else {
-                    server.handleMessageFromServer(message); // Send regular messages to all clients
-                }
-            }
-        } catch (Exception ex) {
-            System.out.println("Unexpected error while reading from console!");
-        }
-    }
+
     
     
 	@Override
@@ -52,6 +38,7 @@ public class ServerConsole implements ChatIF {
  *
  * @param args[0] The port number to listen on. The default port is 5555 
  *          if no argument is entered.
+ * @throws IOException 
  */
 	public static void main(String[] args) {
 	  int port = 5555; //Port to listen on
@@ -70,6 +57,7 @@ public class ServerConsole implements ChatIF {
 	  try 
 	  {
 	    sv.listen(); //Start listening for connections
+	    
 	  } 
 	  catch (Exception ex) 
 	  {
@@ -80,5 +68,20 @@ public class ServerConsole implements ChatIF {
 	    System.out.println("Server Console: " + message); // Echo on the server console
 	    server.broadcastToClients(message); // Broadcast to all clients through EchoServer
 	}
+    public void accept() {
+        try {
+            String message;
+            while (true) {
+                message = fromConsole.nextLine();
+                if (message.startsWith("#")) {
+                    server.handleMessageFromServerConsole(message); // Process commands
+                } else {
+                    server.handleMessageFromServer(message); // Send regular messages to all clients
+                }
+            }
+        } catch (Exception ex) {
+            System.out.println("Unexpected error while reading from console!");
+        }
+    }
 }
 //End of ServerConsole class
